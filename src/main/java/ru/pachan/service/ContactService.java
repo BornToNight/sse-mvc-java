@@ -12,9 +12,11 @@ import ru.pachan.util.ResponseException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
@@ -31,7 +33,7 @@ public class ContactService {
 //    @Value("${app.sse.emitter-timeout:30}")
 //    private long emitterTimeout;
 
-    private final ConcurrentMap<String, SseEmitter> subscriptions = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Deque<SseEmitter>> subscriptions = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Queue<PendingEvent>> pendingEvents = new ConcurrentHashMap<>();
     private final ScheduledExecutorService heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -53,19 +55,29 @@ public class ContactService {
 
     public void addSubscription(String agentId, SseEmitter emitter) {
         log.info("Открытие соединения");
-        SseEmitter oldEmitter = subscriptions.get(agentId);
+        Deque<SseEmitter> emitters = subscriptions.computeIfAbsent(agentId,
+                k -> new ConcurrentLinkedDeque<>());
 
+        SseEmitter oldEmitter = emitters.peekFirst();
         if (isEmitterActive(oldEmitter)) {
             completeEmitter(oldEmitter);
         }
 
-        subscriptions.put(agentId, emitter);
+        emitters.addLast(emitter);
+
         sendPendingEvents(agentId, emitter);
     }
 
     public void removeSubscription(String agentId) {
         log.info("Разрыв соединения");
-        subscriptions.remove(agentId);
+        Deque<SseEmitter> emitters = subscriptions.get(agentId);
+        if (emitters != null) {
+            emitters.pollFirst();
+            if (emitters.isEmpty()) {
+                subscriptions.remove(agentId);
+            }
+        }
+
 //        SseEmitter emitter = subscriptions.remove(agentId);
 //
 //        // Убираем цикличность
@@ -75,8 +87,9 @@ public class ContactService {
     }
 
     public void sendContact(String agentId, String eventName, Object data) {
-        SseEmitter emitter = subscriptions.get(agentId);
-        if (isEmitterActive(emitter)) {
+        Deque<SseEmitter> emitters = subscriptions.get(agentId);
+        if (emitters != null && isEmitterActive(emitters.peekLast())) {
+            SseEmitter emitter = emitters.peekLast();
             try {
                 log.info("Отправляем");
                 SseEmitter.SseEventBuilder event = SseEmitter.event()
@@ -85,7 +98,6 @@ public class ContactService {
                 emitter.send(event);
             } catch (Exception e) {
                 log.info("Ошибка отправки, закрываем соединение");
-                removeSubscription(agentId);
                 completeEmitter(emitter);
                 addPendingEvent(agentId, eventName, data, Instant.now());
             }
@@ -97,18 +109,18 @@ public class ContactService {
     }
 
     private void sendHeartbeats() {
-        subscriptions.entrySet().removeIf(entry -> {
-            String agentId = entry.getKey();
-            SseEmitter emitter = entry.getValue();
+        subscriptions.forEach((agentId, emitters) -> {
 
-            try {
-                emitter.send(SseEmitter.event().name("heartbeat").data("ping"));
-                return false; // Не удаляем
-            } catch (IOException e) {
-                log.info("Heartbeat неудачен");
-                completeEmitter(emitter);
-                return true; // Удаляем неактивное соединение
+            SseEmitter emitter = emitters.peekLast();
+            if (isEmitterActive(emitter)) {
+                try {
+                    emitter.send(SseEmitter.event().name("heartbeat").data("ping"));
+                } catch (IOException e) {
+                    log.info("Heartbeat неудачен");
+                    completeEmitter(emitter);
+                }
             }
+
         });
     }
 
@@ -118,17 +130,13 @@ public class ContactService {
         log.info("cleanup, before - {}", pendingEvents.size());
         pendingEvents.forEach((key, value) -> log.info("size IN - {}; size - {}", key, value.size()));
 
-        pendingEvents.entrySet().removeIf(entry -> {
-            String agentId = entry.getKey();
-            Queue<PendingEvent> events = entry.getValue();
-
+        pendingEvents.forEach((agentId, events) -> {
             // Если соединение активно, не удаляем события для этого агента
-            if (isEmitterActive(subscriptions.get(agentId))) {
-                return false;
+            if (isEmitterActive(subscriptions.get(agentId).peekLast())) {
+                return;
             }
 
             events.removeIf(event -> event.isExpired(1));
-            return events.isEmpty();
         });
 
         log.info("cleanup, after - {}", pendingEvents.size());

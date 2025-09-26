@@ -1,12 +1,12 @@
 spring:
   application:
     name: sse-mvc-java
-#  threads:
-#    virtual:
-#      enabled: true
+  threads:
+    virtual:
+      enabled: true
 
 
 server:
   port: 9021
-#  undertow:
-#    idle-timeout: 3600000
+  undertow:
+    idle-timeout: 3600000
