@@ -27,29 +27,12 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class ContactService {
 
-//    @Value("${app.sse.heartbeat-interval:30}")
-//    private long heartbeatInterval;
-//
-//    @Value("${app.sse.emitter-timeout:30}")
-//    private long emitterTimeout;
-
     private final ConcurrentMap<String, Deque<SseEmitter>> subscriptions = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Queue<PendingEvent>> pendingEvents = new ConcurrentHashMap<>();
     private final ScheduledExecutorService heartbeatScheduler = Executors.newSingleThreadScheduledExecutor();
 
     @PostConstruct
     public void init() {
-
-// TODO логи
-
-
-        // Один общий heartbeat для всех клиентов
-//        heartbeatScheduler.scheduleAtFixedRate(
-//                this::sendHeartbeats,
-//                sseConfig.getHeartbeatInterval().toSeconds(),
-//                sseConfig.getHeartbeatInterval().toSeconds(),
-//                TimeUnit.SECONDS
-//        );
         heartbeatScheduler.scheduleAtFixedRate(this::sendHeartbeats, 30, 30, TimeUnit.SECONDS); // TODO переменные
     }
 
@@ -77,13 +60,6 @@ public class ContactService {
                 subscriptions.remove(agentId);
             }
         }
-
-//        SseEmitter emitter = subscriptions.remove(agentId);
-//
-//        // Убираем цикличность
-//        if (isEmitterActive(emitter)) {
-//            completeEmitter(emitter);
-//        }
     }
 
     public void sendContact(String agentId, String eventName, Object data) {
@@ -132,10 +108,9 @@ public class ContactService {
 
         pendingEvents.forEach((agentId, events) -> {
             // Если соединение активно, не удаляем события для этого агента
-            if (isEmitterActive(subscriptions.get(agentId).peekLast())) {
+            if (subscriptions.get(agentId) != null && isEmitterActive(subscriptions.get(agentId).peekLast())) {
                 return;
             }
-
             events.removeIf(event -> event.isExpired(1));
         });
 
@@ -190,4 +165,5 @@ public class ContactService {
         log.info("addPendingEvent, after - {}", pendingEvents.size());
         pendingEvents.forEach((key, value) -> log.info("size IN - {}; size - {}", key, value.size()));
     }
+
 }

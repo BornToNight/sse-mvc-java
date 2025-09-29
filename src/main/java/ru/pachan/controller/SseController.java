@@ -62,4 +62,5 @@ public class SseController {
 
         return emitter;
     }
+
 }
