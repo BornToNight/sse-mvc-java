@@ -1,4 +1,4 @@
-package ru.pachan.controller;//package ru.pachan.ws.controller;
+package ru.pachan.sse_mvc_java.controller;//package ru.pachan.ws.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import ru.pachan.service.ContactService;
+import ru.pachan.sse_mvc_java.service.ContactService;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;

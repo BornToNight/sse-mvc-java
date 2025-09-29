@@ -1,4 +1,4 @@
-package ru.pachan.service;
+package ru.pachan.sse_mvc_java.service;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -6,8 +6,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import ru.pachan.dto.PendingEvent;
-import ru.pachan.util.ResponseException;
+import ru.pachan.sse_mvc_java.dto.PendingEvent;
+import ru.pachan.sse_mvc_java.util.ResponseException;
 
 import java.io.IOException;
 import java.time.Instant;

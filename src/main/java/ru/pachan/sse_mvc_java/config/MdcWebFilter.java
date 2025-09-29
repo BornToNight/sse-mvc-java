@@ -1,4 +1,4 @@
-package ru.pachan.config;
+package ru.pachan.sse_mvc_java.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

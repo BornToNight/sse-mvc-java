@@ -1,4 +1,4 @@
-package ru.pachan.dto;
+package ru.pachan.sse_mvc_java.dto;
 
 import java.time.Duration;
 import java.time.Instant;

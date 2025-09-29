@@ -1,4 +1,4 @@
-package ru.pachan.util;
+package ru.pachan.sse_mvc_java.util;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
