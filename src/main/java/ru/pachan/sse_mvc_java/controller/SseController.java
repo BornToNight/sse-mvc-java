@@ -11,10 +11,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-import ru.pachan.sse_mvc_java.service.ContactService;
+import ru.pachan.sse_mvc_java.service.SseService;
 
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+import java.time.Duration;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -23,43 +22,18 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/sse")
 public class SseController {
 
-    private final ContactService contactService;
+    public static final Duration DURATION = Duration.ofHours(12);
+    private final SseService sseService;
 
     @PostMapping()
     public void contactMvc(@RequestParam String connectionId, @RequestParam String message) {
-        contactService.sendContact(connectionId, "EVENT_NAME", message);
+        sseService.sendEvent(connectionId, "EVENT_NAME", message);
     }
 
     @GetMapping(value = "/{connectionId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter contactSseMvc(@PathVariable String connectionId) {
-        SseEmitter emitter = new SseEmitter(TimeUnit.HOURS.toMillis(12)); // TODO сделать переменную
-
-        contactService.addSubscription(connectionId, emitter);
-
-        emitter.onCompletion(() -> {
-            log.info("onCompletion");
-            contactService.removeSubscription(connectionId);
-        });
-
-        emitter.onTimeout(() -> {
-            log.info("onTimeout");
-            contactService.removeSubscription(connectionId);
-        });
-
-        emitter.onError(throwable -> {
-            log.info("onError: {}", throwable.getMessage());
-            contactService.removeSubscription(connectionId);
-        });
-
-        try {
-            emitter.send(SseEmitter.event()
-                    .name("start")
-                    .comment("SSE Connected"));
-//                    .reconnectTime(5000L));
-        } catch (IOException e) {
-            log.error("Ошибка при отправке начального события", e);
-        }
-
+        SseEmitter emitter = new SseEmitter(DURATION.toMillis());
+        sseService.openConnection(connectionId, emitter);
         return emitter;
     }
 

@@ -1,16 +1,17 @@
 package ru.pachan.sse_mvc_java.dto;
 
 import java.time.Duration;
-import java.time.Instant;
 
 public record PendingEvent(
         String eventName,
         Object data,
-        Instant timestamp
+        long createdAtNanos
 ) {
 
-    public boolean isExpired(int eventTimeLiveMinutes) {
-        return Duration.between(timestamp, Instant.now()).compareTo(Duration.ofMinutes(eventTimeLiveMinutes)) > 0;
+    public boolean isExpired(Duration eventQueueTimeLive) {
+        long now = System.nanoTime();
+        long expirationNanos = eventQueueTimeLive.toNanos();
+        return now - createdAtNanos > expirationNanos;
     }
 
 }
